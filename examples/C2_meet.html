@@ -1,0 +1,164 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>C2 Geometric Algebra Test</title>
+		<script src="../versor.js"></script>
+		<script src="../C2.js"></script>
+<!--		<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script> -->
+
+  </head>
+	
+  <body>
+		<h3>C2 Geometric Algebra Test</h3>
+		<canvas id="canvas" width=500 height=500 ></canvas>
+  </body>
+
+  <script>
+
+    var canvas = document.getElementById("canvas"),
+        ctx = canvas.getContext("2d"),
+        width = canvas.width,
+        height = canvas.height
+    
+    ctx.fillStyle = "red"
+    ctx.strokeStyle = "green"
+    ctx.lineWidth = 5
+
+    // GA CODE BELOW -->
+
+    C2.Round = C2.Ro
+    C2.Flat = C2.Fl
+    C2.Round.center = C2.Ro.cen
+
+    Point  =   C2.Round.point
+    Line   =   C2.Flat.line
+    Circle =   C2.Round.circle
+
+    var leftBorder = Line( Point(0,height), Point(0,0) )    
+    var rightBorder = Line( Point(width,0), Point(width,height) )
+    var topBorder = Line( Point(0,0), Point(width,0) )    
+    var bottomBorder = Line( Point(width,height), Point(0,height) )
+
+    drawCircle = function( c, color ){
+      var col = color || "red"
+      var p = C2.Round.center( c );
+      var radius = C2.Round.radius ( c );
+
+      ctx.beginPath();
+      ctx.arc( p[0], p[1], radius, 0, 2 * Math.PI, false);
+      ctx.strokeStyle = col
+      ctx.stroke();
+    }
+
+    drawPoint = function( c ){
+      var length = 10
+      var size = C2.Round.size(c)
+      if ( Math.abs(size) > 1 ) {
+        drawCircle(c)
+      } else {
+        ctx.beginPath();
+        ctx.rect( c[0] - length/2, c[1] - length/2, length, length )
+        ctx.fill()
+      }
+    }
+
+    drawPair = function( c ){
+      var split = C2.Round.split(c)
+      drawPoint( split[0] )
+      drawPoint( split[1] )
+      
+    }
+
+    dilatorAt = function( s, x, y){
+      var trs = C2.Op.trs(x,y)
+      var dil = C2.Op.dil( s )
+      return C2.Tsd( trs.gp(dil).gp( trs.reverse() ) )
+    }
+
+    intersectLines = function(a, b){
+      var flp =  C2.dual( C2.dual( a ).op ( C2.dual(b) ) )
+      if (flp[2] == 0) return "nan" 
+      return flp.gp( 1 / flp[2] )
+    }
+
+    intersect = function(a, b){
+      return C2.dual( C2.dual(a).op(C2.dual(b)) )
+    }
+
+
+    drawLine = function( l ){
+
+     // console.log( "hello") 
+      var a = intersectLines( l, leftBorder );
+      var b = intersectLines( l, rightBorder );
+
+      if (a == "nan" ) {
+        a = intersectLines(l, topBorder );
+        b = intersectLines(l, bottomBorder);
+      }
+
+      ctx.beginPath();
+      ctx.moveTo( a[0], a[1] );
+      ctx.lineTo( b[0], b[1] );
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+
+    var drop = Circle(width/2,height/2,10)
+
+    var timer = 0
+
+    //Cross platform animation
+    window.requestAnimFrame = (function(callback) {
+       
+        return  window.requestAnimationFrame || 
+                window.webkitRequestAnimationFrame ||  
+                window.mozRequestAnimationFrame || 
+                window.oRequestAnimationFrame || 
+                window.msRequestAnimationFrame ||
+        
+        function(callback) {
+          window.setTimeout(callback, 1000 / 60);
+        };
+      
+      })();
+
+      function animate() {
+        // update data
+
+        timer = timer + .01
+        // clear
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // draw stuffs
+        
+        //  drawLine( Line(Point(100,100), Point(200,200) ) )
+          drawLine( leftBorder )
+          drawLine( rightBorder )
+          drawLine( topBorder )
+          drawLine( bottomBorder )
+
+          var p = C2.Round.loc( drop )
+          var dilate =  dilatorAt(timer, p[0], p[1] )           
+          var c = drop.sp( dilate )
+          drawCircle( c )
+
+       
+          // feedback loop requests new frame
+          requestAnimFrame(function() {
+            animate();
+          });
+      }
+
+      animate();
+
+
+
+	
+  </script>
+
+
+</html>
+

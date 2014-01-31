@@ -13,6 +13,7 @@ var C2 = versor.create({
 		{ name:"Drv", bases:["e14", "e24"] },
 		{ name:"Tnv", bases:["e13", "e23"] },
 		{ name:"Dil", bases:["s", "e34"] },
+    { name:"Tsd", bases:["s", "e14", "e24","e34"] },
 		{ name:"Trs", bases:["s", "e14", "e24"] },
 		{ name:"Mot", bases:["s", "e12", "e14", "e24"] },
 		{ name:"Bst", bases:["s", "e12", "e13", "e14", "e23", "e24", "e34"] },
@@ -51,6 +52,9 @@ C2.Ro = {
 		var v = C2.Inf.ip(a);
 		return C2.Pnt(a.gp(C2.Inf).gp(a).div(v.gp(v).gp(-2)));
 	},
+  loc: function(a) {
+    return C2.Ro.point( C2.Ro.cen(a) )
+  },
 	// squared distance
 	sqd: function(a, b) {
 		return -a.ip(b)[0]*2;
@@ -106,9 +110,17 @@ var sinh = function(v) {
 
 C2.Op = {
 
+  rot: function(s){
+    return C2.Rot(cos(s), -sin(s) )
+  },
 	trs: function(x, y) {
-		return C2.Trs(1, 0.5*x, 0.5*y);
+		return C2.Trs(1, -0.5*x, -0.5*y);
 	},
+  
+  dil: function(s){
+    return C2.Dil( cosh(s*.5), sinh(s*.5) )
+  },
+
 	bst: function(pp) {
 		var sz = pp.ip(pp)[0];
 		
