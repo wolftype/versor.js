@@ -48,10 +48,11 @@ C2.Ro = {
 		if(size < 0) return -Math.sqrt(-size);
 		else return Math.sqrt(size);
 	},
-	cen: function(a) {
+	center: function(a) {
 		var v = C2.Inf.ip(a);
 		return C2.Pnt(a.gp(C2.Inf).gp(a).div(v.gp(v).gp(-2)));
 	},
+  cen: function(a) { return C2.Ro.center(a) },
   loc: function(a) {
     return C2.Ro.point( C2.Ro.cen(a) )
   },
@@ -59,13 +60,24 @@ C2.Ro = {
 	sqd: function(a, b) {
 		return -a.ip(b)[0]*2;
 	},
-	// distance
-	dst: function(a, b) {
+
+	// distance between two points
+	distance: function(a, b) {
 		return Math.sqrt(Math.abs(C2.Ro.sqd(a, b)));
 	},
-	car: function(a) {
+  dst : function(a,b){
+    return distance(a,b)
+  },
+  //carrier flat of direct round
+	carrier: function(a) {
 		return a.op(C2.Inf);
 	},
+  car : function(a) { return carrier(a) },
+
+  //surround of dual or direct round
+  surround : function(a){
+    return C2.Pnt( a.gp( (a.op(C2.Inf).inverse() ) ))
+  },
 	// split a point pair into its 2 points, returns an array
 	split: function(pp) {
 		var r = Math.sqrt( Math.abs( pp.ip(pp)[0]  ))
@@ -96,7 +108,7 @@ C2.Fl = {
 	},
 	loc: function(a, p) {
 		if(a.isdual()) return C2.Pnt(p.op(a).div(a));
-		else return C2.Pnt(p.ip(a).div(a));
+		else return C2.Pnt(p.ip(a).div(a)); 
 	}
 };
 
@@ -110,17 +122,38 @@ var sinh = function(v) {
 
 C2.Op = {
 
+  //ROTATIONS
   rot: function(s){
     return C2.Rot(cos(s), -sin(s) )
   },
+  rotor: function(s){
+    return rot(s);
+  },
+
+  //TRANSLATIONS
 	trs: function(x, y) {
 		return C2.Trs(1, -0.5*x, -0.5*y);
 	},
+  translator: function(x,y){
+    return trs(x,y);
+  },
   
+  //DILATIONS
   dil: function(s){
     return C2.Dil( cosh(s*.5), sinh(s*.5) )
   },
+  dilator: function(s){
+    return dil(s);
+  },
+  dilAt: function(s, x, y){
+    var t = trs(x,y)
+    return C2.Tsd( t.gp( dil(s) ).gp( t.reverse() ) )
+  },
+  dilatorAt: function(s,x,y){
+    return dilAt(s,x,y);
+  },
 
+  //BOOSTS (BENDS)
 	bst: function(pp) {
 		var sz = pp.ip(pp)[0];
 		
@@ -145,12 +178,22 @@ C2.Op = {
 		res[0] = cn;
 		return res;
 	},
+  boost: function(pp) { return bst(pp); },
+
+  //REJECTION
 	rj: function(a, b) {
 		return a.op(b).div(b);
 	},
+  reject: function(a,b){
+    return rj(a,b);
+  },
+  //PROJECTION
 	pj: function(a, b) {
 		return a.ip(b).div(b);
-	}
+	},
+  project: function(a,b){
+    return pj(a,b)
+  }
 };
 
 C2.Ta = {

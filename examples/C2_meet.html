@@ -1,17 +1,26 @@
 
 <!DOCTYPE html>
 <html>
-	<head>
-		<title>C2 Geometric Algebra Test</title>
-		<script src="../versor.js"></script>
-		<script src="../C2.js"></script>
-<!--		<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script> -->
+  <head>
+    <title>C2 Geometric Algebra Test</title>
+    <script src="../versor.js"></script>
+    <script src="../C2.js"></script>
+<!--    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script> -->
 
   </head>
-	
+  
   <body>
-		<h3>C2 Geometric Algebra Test</h3>
-		<canvas id="canvas" width=500 height=500 ></canvas>
+    <center>
+    <h3>Wave Propagation</h3>
+    <button id="stop">PAUSE</button>
+    <p/>
+
+    <canvas id="canvas" width=300 height=200 ></canvas>
+    <p/>
+        Click to propagate a wave
+    <p/>
+    <input type="range" id="amt"> (speed) </input>
+    </center>
   </body>
 
   <script>
@@ -20,21 +29,65 @@
         ctx = canvas.getContext("2d"),
         width = canvas.width,
         height = canvas.height
+
+    canvas.addEventListener( "mousedown", onMouseDown, false )
+    canvas.addEventListener( "mousemove", onMouseMove, false )
+    
+    var doAnimate = 1
+    var stop = document.getElementById("stop")
+    stop.onclick = function(){
+      doAnimate = !doAnimate
+      if (doAnimate) this.innerHTML = "PAUSE"
+        else this.innerHTML = "START"
+      //console.log(doAnimate)
+    }
+
+    //Cross platform animation
+    var timer = 0
+    window.requestAnimFrame = ( function(callback) {
+       
+        return  window.requestAnimationFrame || 
+                window.webkitRequestAnimationFrame ||  
+                window.mozRequestAnimationFrame || 
+                window.oRequestAnimationFrame || 
+                window.msRequestAnimationFrame ||
+        
+        function(callback) {
+          window.setTimeout(callback, 1000 / 60);
+        };
+      
+      } ) ();    
+    
+    var amt = document.getElementById("amt")
+
+
     
     ctx.fillStyle = "red"
     ctx.strokeStyle = "green"
-    ctx.lineWidth = 5
+    ctx.lineWidth = 2
 
     // GA CODE BELOW -->
 
     C2.Round = C2.Ro
     C2.Flat = C2.Fl
-    C2.Round.center = C2.Ro.cen
 
     Point  =   C2.Round.point
     Line   =   C2.Flat.line
     Circle =   C2.Round.circle
 
+    var MouseClick = Point(width/2,height/2) 
+    var MousePos = MouseClick 
+
+    var topLeft = Point(0,0)
+    var topRight = Point(width,0)
+    var bottomRight = Point(width,height)
+    var bottomLeft = Point(0,height)
+
+    var leftPair = bottomLeft.op( topLeft )
+    var topPair = topLeft.op( topRight )
+    var rightPair = topRight.op( bottomRight )
+    var bottomPair = bottomRight.op( bottomLeft )
+  
     var leftBorder = Line( Point(0,height), Point(0,0) )    
     var rightBorder = Line( Point(width,0), Point(width,height) )
     var topBorder = Line( Point(0,0), Point(width,0) )    
@@ -51,7 +104,11 @@
       ctx.stroke();
     }
 
-    drawPoint = function( c ){
+    drawPoint = function( c, color ){
+      var col = color || "red"       
+      
+       ctx.fillStyle = col
+
       var length = 10
       var size = C2.Round.size(c)
       if ( Math.abs(size) > 1 ) {
@@ -63,10 +120,11 @@
       }
     }
 
-    drawPair = function( c ){
+    drawPair = function( c, color ){
+      var col = color || "blue"
       var split = C2.Round.split(c)
-      drawPoint( split[0] )
-      drawPoint( split[1] )
+      drawPoint( split[0], col )
+      drawPoint( split[1], col )
       
     }
 
@@ -83,9 +141,13 @@
     }
 
     intersect = function(a, b){
-      return C2.dual( C2.dual(a).op(C2.dual(b)) )
+      var ta = a
+      var tb = b
+      if (!ta.isdual()) ta = C2.dual(a)
+      if (!tb.isdual()) tb = C2.dual(b)
+      var rt = C2.dual( ta.op(tb) )
+      return rt
     }
-
 
     drawLine = function( l ){
 
@@ -105,31 +167,80 @@
       ctx.stroke();
     }
 
+    var impulse = Circle(width/2,height/2,10)
 
-    var drop = Circle(width/2,height/2,10)
+    var bounds = [leftBorder, topBorder, rightBorder, bottomBorder]
+    var pair = [leftPair, topPair, rightPair, bottomPair ]
+    var spair = [ C2.Round.surround( leftPair ), C2.Round.surround( topPair ),C2.Round.surround( rightPair ), C2.Round.surround( bottomPair ) ] 
 
-    var timer = 0
+    function Wavefront(c) {
+      this.cir = c,
+      this.color = "red",
+      this.isRef = [0,0,0,0],
+      this.hasRef = [0,0,0,0],
+      this.calcRef = [1,1,1,1],
+      this.reflections = [ 0,0,0,0]
+    };
 
-    //Cross platform animation
-    window.requestAnimFrame = (function(callback) {
-       
-        return  window.requestAnimationFrame || 
-                window.webkitRequestAnimationFrame ||  
-                window.mozRequestAnimationFrame || 
-                window.oRequestAnimationFrame || 
-                window.msRequestAnimationFrame ||
-        
-        function(callback) {
-          window.setTimeout(callback, 1000 / 60);
-        };
+    Wavefront.prototype.side = function( idx ){
+       var p = C2.Ro.center( this.cir )
+       var s = p.ip( C2.dual( bounds[idx] ) )
+       return ( s[0] > 0 )
+    }
+
+    Wavefront.prototype.init = function(){
+     for (var i = 0; i < bounds.length; ++i){
+          this.calcRef[i] = this.side( i )
+     }
+    }
+
+    Wavefront.prototype.outside = function(){
+      var a = topLeft.ip( this.cir )[0]
+      var b = topRight.ip(this.cir)[0]
+      var c = bottomRight.ip(this.cir)[0]
+      var d = bottomLeft.ip(this.cir)[0]
+      return ( a>0 && b>0 && c>0 && d>0 )
+    }
+    
+
+    var tw = new Wavefront( impulse )
+    var waves = [tw]
+
+    //RESET
+    function onMouseDown(e){
+      var r = canvas.getBoundingClientRect(); 
+      MouseClick = Point( e.clientX - r.left, e.clientY -r.top)
       
-      })();
+     impulse =  Circle( MousePos[0], MousePos[1], 10)
+     timer = 0
+     tw = new Wavefront ( impulse )
+     waves = []
+     waves.push(tw)
+    }
 
-      function animate() {
+    <!-- var morewaves = [] -->
+    
+    function onMouseMove(e){
+      var r = canvas.getBoundingClientRect(); 
+      MousePos = Point( e.clientX - r.left, e.clientY -r.top)
+      
+    <!--  var newImpulse =  Circle( MousePos[0], MousePos[1], 10) -->
+    <!--  var nw = [new Wavefront ( newImpulse )] -->  
+    <!--  morewaves.push(nw) -->
+    }
+
+
+
+      var iter = 80
+      function animate( ) {
+
+        
+        if (doAnimate){
         // update data
 
-        timer = timer + .01
-        // clear
+       // console.log( waves.length )
+
+        timer = timer + .1        // clear
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // draw stuffs
@@ -140,23 +251,104 @@
           drawLine( topBorder )
           drawLine( bottomBorder )
 
-          var p = C2.Round.loc( drop )
-          var dilate =  dilatorAt(timer, p[0], p[1] )           
-          var c = drop.sp( dilate )
-          drawCircle( c )
+
+          var p = C2.Round.center( impulse )
+          var dilate =  dilatorAt( Math.log( timer * amt.value/10), p[0], p[1] )           
+          waves[0].cir = impulse.sp( dilate )
+          drawCircle( waves[0].cir )
+
+          <!-- for (var i = 0; i < morewaves.length; ++i){ -->
+          <!--   var p = C2.Round.center( morewaves[i][0].cir ) -->
+          <!--   morewaves[i][0].cir = morewaves[i][0].cir.sp( dilatorAt( Math.log(amt.value/10), p[0], p[1] ) ) -->
+
+          <!-- } -->
+          
+          var num = waves.length
+          //console.log(num)
+          for (var it = 0; it < num; ++it) {
+
+            var w = waves[it];
+    
+         //                        
+            var nit = Math.floor( it/3 )
+
+            var b = (200 * nit/iter).toString()
+            var g = (0).toString()
+            var r = ( 255 - 200* nit/iter).toString() 
+            var a = 1 - num/(num*iter)
+
+          //  console.log(a)
+
+            var color = "rgba(" + [r,g,b,a].join(",") + ")"
+
+            
+            for ( var i = 0; i < 4; i++ ){
+            
+            
+              if ( num < ( iter * 4 ) ){
+  
+                 if ( w.calcRef[i] == 1 ){
+                   
+                   var meet = intersect( bounds[i], w.cir )
+
+                   if (C2.Ro.size(meet)>=0){
+                   
+                    var split =  C2.Ro.split(meet)
+                    var tc = split[0]
+                    var pa =  tc.ip( spair[i] )[0]
+                    var pb = split[1].ip( spair[i] )[0]
+
+                    if ( pa <= 0  ){
+
+                      var nw = new Wavefront( tc )
+                      
+                      nw.init()
+                      nw.calcRef[i] = 0
+                      w.calcRef[i] = 0
+                      w.hasRef[i] = 1
+                      w.reflections[i] = nw
+                      w.color = color                
+                      waves.push( nw )
+
+                    }
+
+                  }
+
+                }
+              }
+
+
+              if (w.hasRef[i]) { w.reflections[i].cir = w.cir.re( bounds[i] )  }
+            
+              if (w.reflections[i] != 0 && !w.reflections[i].outside()) { drawCircle( w.reflections[i].cir, w.color ) }
+
+            }
+
+           // }
+          }
+
+       }
 
        
+              drawPoint( MouseClick )
+
           // feedback loop requests new frame
           requestAnimFrame(function() {
-            animate();
+             animate();
           });
+
       }
 
       animate();
 
 
+    <!-- console.log( spair[0] ) -->
+    <!-- for ( var i = 0; i < 4; ++i){ -->
+    <!--   drawCircle( spair[i] ) -->
+    <!-- } -->
 
-	
+
+  
   </script>
 
 
