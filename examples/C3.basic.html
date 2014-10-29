@@ -1,0 +1,184 @@
+<html>
+	<head>
+		<title>Tesselations</title>
+		<style>canvas { width: 100%; height: 100% }</style>
+	</head>
+	<body>
+		<script src="three.js"></script>
+		<script src="TrackballControls.js"></script>
+		<script src="../versor.js"></script>
+		<script src="../C3.js"></script>
+		<script>
+
+
+var ThreeSetup = function() {
+	this.scene = new THREE.Scene();
+	this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+	this.controls = new THREE.TrackballControls(this.camera);
+	this.renderer = new THREE.WebGLRenderer({ antialias:true });
+	
+	this.initControls();
+	this.initRenderer();
+	this.initCamera();
+}
+
+ThreeSetup.prototype.initControls = function() {
+	this.controls.rotateSpeed = 1.0;
+	this.controls.zoomSpeed = 1.2;
+	this.controls.panSpeed = 1.8;
+	this.controls.noZoom = false;
+	this.controls.noPan = false;
+	this.controls.staticMoving = true;
+	this.controls.dynamicDampingFactor = 0.3;
+	this.controls.keys = [ 65, 83, 68 ];
+}
+
+ThreeSetup.prototype.initRenderer = function() {
+	this.renderer.setClearColor(0xeeeeee);
+	this.renderer.setSize(window.innerWidth, window.innerHeight);
+	document.body.appendChild(this.renderer.domElement);
+}
+
+ThreeSetup.prototype.initCamera = function() {
+	this.camera.position.z = 2;
+}
+
+ThreeSetup.prototype.resize = function() {
+	this.camera.aspect = window.innerWidth/window.innerHeight;
+	this.camera.updateProjectionMatrix();
+	this.renderer.setSize(window.innerWidth, window.innerHeight);
+	this.controls.handleResize();
+}
+
+ThreeSetup.prototype.render = function() {
+	this.controls.update();
+	this.renderer.render(this.scene, this.camera);
+}    
+
+
+applyScale = function(obj, amt){
+  obj.scale = new THREE.Vector3(amt,amt,amt)
+}
+
+applyPosition = function(obj, pos){
+  obj.position = pos
+}
+
+applyQuaternion = function(obj, quat){
+  obj.quaternion = quat
+}
+
+updateMatrix = function(obj){
+  obj.updateMatrix()
+  obj.updateMatrixWorld()
+}
+
+updateObject = function(obj, scale, position, orientation){
+  applyScale(obj,scale)
+  applyPosition(obj,position)
+  applyQuaternion(obj,orientation)
+  updateMatrix(obj)
+}
+
+
+
+/// ------ END THREE.JS ------
+
+
+
+// Three <----> C3 conversion functions
+function Vector3ToPnt(v) {
+	return C3.Ro.point(v.x, v.y, v.z);
+}
+
+function PntToVector3(p) {
+	return new THREE.Vector3(p[0], p[1], p[2]);
+}
+
+function RotToQuat(r){
+  return new THREE.Quaternion( -rot[3], rot[2], rot[1], rot[0] )
+}
+
+function makeSphereGlyph(radius){
+  var rad = radius || 1
+  var s = new THREE.Mesh(
+    new THREE.SphereGeometry(rad, 15, 15), 
+    new THREE.MeshBasicMaterial({color: 0xff0055})
+  );
+  var o = new THREE.Object3D();
+  o.add(s);
+  return o
+}
+
+function makeCircleGlyph(radius){
+  var rad = radius || 1
+	var geometry = new THREE.Geometry()
+  for (var i=0; i<50; ++i){
+    var theta = i * Math.PI*2/50;
+    geometry.vertices.push( THREE.Vector3(Math.cos(theta) * rad, Math.sin(theta) * rad,0);
+  }
+	var lineMaterial = new THREE.LineBasicMaterial({color: 0x00aaff, linewidth:2});
+	var cir = new THREE.Line(geometry, lineMaterial);
+  var o = new THREE.Object3D();
+  o.add(cir);
+  return o
+}
+
+var SPHERE = makeSphereGlyph()
+var CIRCLE = makeCircleGlyph()
+
+getRot = function(cir){
+  var vec = C3.duale( C3.Biv( C3.Ro.dir( cir ) ) )
+  var rot = C3.Gen.ratio( C3.Vec(0,0,1), C3.unit( vec ) )
+  return rot
+}
+
+
+updateSphere = function(sphere, obj){
+  var scale = C3.Ro.size(sphere)
+  var pos = PntToVector( C3.Ro.cen(sphere) )
+  applyScale(obj,scale)
+  applyPosition(obj, pos)
+  updateMatrix(obj)
+}
+
+updateCircle = function(cir,obj){
+  var scale = C3.Ro.size(cir);
+  var pos = PntToVector( C3.Ro.cen(cir) )
+  var rot = RotToQuat( getRot(cir) )
+}
+
+var dls = C3.Ro.dls(1,0,0,1);
+
+var setup = new ThreeSetup();
+setup.scene.add( SPHERE );
+
+
+window.addEventListener('resize', onWindowResize, false)
+function onWindowResize() {
+	setup.resize();
+}
+
+var amt = 0.0
+function update(){
+
+  amt = amt + .01;
+  var dilator = C3.Gen.dil(amt)
+  var ndls = dls.sp( dilator )
+  
+  updateSphere(ndls, SPHERE)
+}
+
+function render() {
+	
+  update()
+  requestAnimationFrame(render);
+	setup.render();
+}
+
+render();
+
+
+		</script>
+	</body>
+</html

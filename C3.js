@@ -187,6 +187,7 @@ C3.Gen = {
 	dil: function(amt) {
         return C3.Dil(cosh(amt*0.5), sinh(amt*0.5));
 	},
+
 	mot: function(dll) {
 		var B = C3.Biv3(dll);
 		var wt = C3.wt(B);
@@ -212,6 +213,7 @@ C3.Gen = {
 
 		return C3.Mot(cc, B[0]*sc, B[1]*sc, B[2]*sc, tt[0], tt[1], tt[2], ts[3]*sc);
 	},
+
 	log: function(m) {
 		var ac = Math.acos(m[0]);
 		var den = sinc(ac);
@@ -233,8 +235,9 @@ C3.Gen = {
 			var c = cperp.add(cpara);
 			return C3.Dll(b.add(c)); 
 		}
-    },
-    ratio: function(a, b, t) {
+  },
+
+  ratio: function(a, b, t) {
 		if(feq(C3.norm(a), 0, 1e-8)) {
 			var dll = b.gp(t);
 			return C3.Gen.mot(dll);
