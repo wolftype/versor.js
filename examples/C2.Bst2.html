@@ -4,7 +4,7 @@
 		<title>C2 Geometric Algebra Test</title>
 		<script src="../versor.js"></script>
 		<script src="../C2.js"></script>
-		<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+		<script src="d3.v3.js" charset="utf-8"></script>
 		<link type="text/css" rel="stylesheet" href="style.css"/>
 	<style type="text/css">
 
@@ -12,12 +12,20 @@ svg {
 	background-color: rgba(0, 0, 0, 0.02);
 }
 
+path {
+	stroke: #000;
+	stroke-width: 0.01;
+	fill: none;
+}
+
+
 circle {
 	stroke: none;
 	fill: none;
 	stroke-opacity: .5;
 	stroke-width: 0.01;
 }
+
 
 line {
 	stroke: #000;
@@ -77,6 +85,7 @@ document.addEventListener("DOMContentLoaded", function(evt) {
 	
 	
 	var N=30;
+	var res=100;
 	var scale=100;
 	var w=600;
 	var h=600;
@@ -92,50 +101,82 @@ document.addEventListener("DOMContentLoaded", function(evt) {
 		];
 	}
 	
-	var points = [];
+	var lines = [];
+	var Datum = [];
 	for(var i=0; i < N; ++i) {
-		for(var j=0; j < N; ++j) {
-			points.push(Ro.point(-2+4/(N-1)*i, -2+4/(N-1)*j));
+		var p1 = Ro.point(-2+4/(N-1)*i, -2);
+		var p2 = Ro.point(-2+4/(N-1)*i, 2);
+		var arr = [
+			[p1[0], p1[1]]
+			
+		];
+		
+		for(var k=0; k < 100; ++k) {
+			var p = Ro.point(-2+4/(N-1)*i, -2+4*k/100);
+			arr.push([p[0], p[1]]);
 		}
+		arr.push([p2[0], p2[1]]);
+		lines.push(arr);
+		Datum.push({
+			type:"LineString",
+			coordinates:arr
+		});
 	}
+	for(var i=0; i < N; ++i) {
+		var p1 = Ro.point(-2, -2+4/(N-1)*i);
+		var p2 = Ro.point(2, -2+4/(N-1)*i);
+		var arr = [
+			[p1[0], p1[1]]	
+		];
+		
+		for(var k=0; k < 100; ++k) {
+			var p = Ro.point(-2+4*k/100, -2+4/(N-1)*i);
+			arr.push([p[0], p[1]]);
+		}
+		arr.push([p2[0], p2[1]]);
+		lines.push(arr);
+		Datum.push({
+			type:"LineString",
+			coordinates:arr
+		});
+	}
+	
+	var Data = {
+		type:"LineString",
+		//coordinates:lines
+		coordinates:[[0, 0], [1, 0]]
+	};
+	var Data2 = {
+		type:"LineString",
+		//coordinates:lines
+		coordinates:[[0, 1], [1, 1]]
+	};
 	
 	var p1 = Ro.point(1, 1);
 	var p2 = Ro.point(1, 1.6);
 	var pp = p1.op(p2);
 	var bst = Op.bst(pp);
 	
-	var transformedPoints = [];
-	points.forEach(function(v, i) {
-		transformedPoints[i] = Ro.point.normalize(v.sp(bst));
-	});
-	
 	var g;
 	g = svg.append("svg:g")
 		.attr("transform", "translate("+(w/2)+", "+(h/2)+") scale("+scale+", "+(-scale)+")");
-	
-	var doubleGradient = function(a, b, c) {
-		var interp1 = d3.interpolateHsl(a, b);
-		var interp2 = d3.interpolateHsl(b, c);
-		
-		return function(t) {
-			if(t < 0.5) {
-				return interp1(t*2);
-			}
-			else {
-				return interp2((t-0.5)*2);
-			}
-		}
-	}
-	
-	
-	var cinterp2 = doubleGradient("#f80", "#030", "#08f");
-	
 	
 	function dist(p1, p2) {
 		var dx = p1[0]-p2[0];
 		var dy = p1[1]-p2[1];
 		return Math.sqrt(dx*dx+dy*dy);
 	}
+	
+	var path = d3.geo.path();
+	var transform = d3.geo.transform({
+		point: function(x, y) {
+			//console.log(x, y);
+			var p = Ro.point(x, y);
+			p = Ro.point.normalize(p.sp(bst));
+			this.stream.point(p[0], p[1]);
+		}
+	});
+	path.projection(transform);
 	
 	var drag = (function() {
 		var circleStartPos = [0, 0];
@@ -165,14 +206,8 @@ document.addEventListener("DOMContentLoaded", function(evt) {
 					sel.attr("cx", function(d) { return d[0]; })
 						.attr("cy", function(d) { return d[1]; });
 				
-					points.forEach(function(v, i) {
-						transformedPoints[i] = Ro.point.normalize(v.sp(bst));
-					});
-					
-					var sel = g.selectAll(".transformedPoints").data(transformedPoints);
-					sel.attr("cx", function(d) { return d[0]; })
-						.attr("cy", function(d) { return d[1]; })
-						.attr("r", function(d) { return pRadius/scale; });	
+					g.selectAll(".lines").data(Datum)
+						.attr("d", path);
 				}
 			});
 		return drag;
@@ -181,27 +216,14 @@ document.addEventListener("DOMContentLoaded", function(evt) {
 	svg.call(drag);
 	
 	
-	var sel = g.selectAll(".points").data(points)
-		.enter().append("svg:circle")
-			.attr("class", "points")
-			.attr("cx", function(d) { return d[0]; })
-			.attr("cy", function(d) { return d[1]; })
-			.attr("r", function(d) { return pRadius/scale; })
-			.attr("style", function(d, i) { 
-				return "fill: "+cinterp2(i/points.length)+";"
-			});
-			
-	var sel = g.selectAll(".transformedPoints").data(transformedPoints)
-		.enter().append("svg:circle")
-			.attr("class", "transformedPoints")
-			.attr("cx", function(d) { return d[0]; })
-			.attr("cy", function(d) { return d[1]; })
-			.attr("r", function(d) { return pRadius/scale; })
-			.attr("style", function(d, i) { 
-				d = points[i];
-				return "fill: "+cinterp2(i/points.length)+";"
-			});
+	
 
+	g.selectAll(".lines").data(Datum)
+		.enter()
+		.append("path")
+		.attr("class", "lines")
+		.attr("d", path);
+		
 	g.selectAll(".generator").data([p1, p2])
 		.enter().append("svg:circle")
 			.attr("class", function(d, i) { return "generator p"+(i+1); })
