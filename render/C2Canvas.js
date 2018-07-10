@@ -1,4 +1,5 @@
 var C2Canvas = function(canvas) {
+  
   var ctx = canvas.getContext("2d");
   ctx.fillStyle = "black";
   ctx.strokeStyle = "black";
